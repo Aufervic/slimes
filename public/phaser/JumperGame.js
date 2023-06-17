@@ -181,8 +181,8 @@ class JumperScene extends Phaser.Scene {
   
   defineSocket() {
     const self = this
-    // this.socket = io('https://slimes.vercel.app/');
-    this.socket = io();
+    this.socket = io('https://slimes.vercel.app/');
+    // this.socket = io();
     this.socket.on("currentData", ({players, bombs}) => {
       Object.keys(players).forEach((id) =>{
         if (players[id].playerId === self.socket.id) {
