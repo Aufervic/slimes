@@ -40,7 +40,7 @@ class JumperScene extends Phaser.Scene {
     this.otherPlayers = this.add.group();
 
     // player
-    this.player = this.physics.add.sprite(100, 450, "slime");
+    this.player = this.physics.add.sprite(24, 360, "slime");
     this.player.setScale(0.6);
     this.player.isAlive = true
     this.player.isReady = false // true cuando se conecta
