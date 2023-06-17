@@ -1,5 +1,6 @@
 require('dotenv').config()
 var express = require('express');
+const cors = require("cors");
 var app = express();
 // var server = require('http').Server(app);
 var server = require('http').createServer(app);
@@ -20,6 +21,9 @@ var scores = {
   red: 0
 };
 
+app.use(cors({
+  origin: '*'
+}));
 app.use(express.static(__dirname + '/public'));
 
 app.get('/', function (req, res) {
