@@ -181,7 +181,7 @@ class JumperScene extends Phaser.Scene {
   
   defineSocket() {
     const self = this
-    this.socket = io('https://slimes.vercel.app/');
+    this.socket = io();
     // this.socket = io();
     this.socket.on("currentData", ({players, bombs}) => {
       Object.keys(players).forEach((id) =>{
@@ -191,6 +191,10 @@ class JumperScene extends Phaser.Scene {
           self.addOtherPlayer(self, players[id]);
         }
       });
+      Object.keys(bombs).forEach((id) =>{
+          self.addOtherBomb(self, bombs[id]);
+      });
+
     });
     this.socket.on("newPlayer", function (playerInfo) {
       self.addOtherPlayer(self, playerInfo);
