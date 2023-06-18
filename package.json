@@ -1,5 +1,5 @@
 {
-  "name": "phaser_tut2",
+  "name": "slimes",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
@@ -7,7 +7,7 @@
     "start": "node ./index.js",
     "dev": "nodemon ./index.js"
   },
-  "author": "Scott Westover",
+  "author": "Aufer Victoriano",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
@@ -16,7 +16,6 @@
     "socket.io": "^2.1.0"
   },
   "devDependencies": {
-    "@flydotio/dockerfile": "^0.2.15",
     "nodemon": "^2.0.22"
   }
 }
