@@ -191,6 +191,10 @@ class JumperScene extends Phaser.Scene {
           self.addOtherPlayer(self, players[id]);
         }
       });
+      Object.keys(bombs).forEach((id) =>{
+          self.addOtherBomb(self, bombs[id]);
+      });
+
     });
     this.socket.on("newPlayer", function (playerInfo) {
       self.addOtherPlayer(self, playerInfo);
