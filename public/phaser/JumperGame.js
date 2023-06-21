@@ -1,3 +1,36 @@
+const SlimeGameData = {
+
+}
+
+// class HomeScene extends Phaser.Scene {
+//   constructor() {
+//     super("HomeScene");
+//   }
+
+ 
+//   create() {
+//     this.add.image(400, 300, "sky");
+//     this.add.image(300, 440, "ground");
+//     this.player = this.add.sprite(36, 400, "slime");
+
+//     // inputs
+//     this.enter = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+//     this.cursors = this.input.keyboard.createCursorKeys();
+//   }
+
+//   update(){
+//     if(Phaser.Input.Keyboard.JustDown(this.enter)){
+//       this.scene.start("JumperScene");
+//     }
+
+//     if (this.cursors.left.isDown) {
+//       this.player.flipX = true;
+//     } else if (this.cursors.right.isDown) {
+//       this.player.flipX = false;
+//     }
+//   }
+// }
+
 class JumperScene extends Phaser.Scene {
   constructor() {
     super("JumperScene");
@@ -9,6 +42,7 @@ class JumperScene extends Phaser.Scene {
     this.load.image("platform", "./assets/platform-large.png");
     this.load.image("star", "./assets/star.png");
     this.load.image("bomb", "./assets/bomb.png");
+    this.load.image("black", "./assets/black.png");
 
     this.load.spritesheet("slime", "./assets/slime-generic-Sheet.png", { frameWidth: 64, frameHeight: 64});
     this.load.spritesheet("slime0", "./assets/slime-0-Sheet.png", { frameWidth: 64, frameHeight: 64});
@@ -23,11 +57,11 @@ class JumperScene extends Phaser.Scene {
     this.load.spritesheet("slime9", "./assets/slime-9-Sheet.png", { frameWidth: 64, frameHeight: 64});
     this.load.spritesheet("slime10", "./assets/slime-10-Sheet.png", { frameWidth: 64, frameHeight: 64});
     this.load.spritesheet("slime11", "./assets/slime-11-Sheet.png", { frameWidth: 64, frameHeight: 64});
+    // this.load.font("gameFont", "./assets/PixelGameFont.ttf");
   }
 
   create() {
     this.add.image(400, 300, "sky");
-
     this.platforms = this.physics.add.staticGroup();
     //platforms
     this.platforms.create(300, 440, "ground");
@@ -47,17 +81,17 @@ class JumperScene extends Phaser.Scene {
 
     this.iAmServer = false
     
-    //stars
-    const stars = this.physics.add.group({
+    //this.stars
+    this.stars = this.physics.add.group({
       key: "star",
       repeat: 8,
       setXY: { x: 12, y: 0, stepX: 70 },
     });
-    stars.children.iterate(function (child) {
+    this.stars.children.iterate(function (child) {
       child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
     });
-    this.physics.add.collider(stars, this.platforms);
-    this.physics.add.overlap(this.player, stars, collect, null, this);
+    this.physics.add.collider(this.stars, this.platforms);
+    this.physics.add.overlap(this.player, this.stars, collect, null, this);
     //bombs
 
     this.bombs = this.physics.add.group();
@@ -65,7 +99,7 @@ class JumperScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.player, this.bombs, bombTouched, null, this);
 
-    function onEvent() {
+    function onReappearEvent() {
       
       this.player.enableBody(true,0, 0, true);
       //.enableBody(true, child.x, 0, true, true);
@@ -80,7 +114,7 @@ class JumperScene extends Phaser.Scene {
       this.player.anims.play("hited");
       this.player.disableBody(true, false);
 
-      this.timedEvent = this.time.delayedCall(3000, onEvent, [], this);
+      this.timedEvent = this.time.delayedCall(3000, onReappearEvent, [], this);
     }
 
 
@@ -93,20 +127,29 @@ class JumperScene extends Phaser.Scene {
     //this.otherBombs.setGravity(0);
     this.physics.add.overlap(this.player, this.otherBombs, bombTouched, null, this);
     this.physics.add.collider(this.otherBombs, this.platforms);
+    
     //score text
-    const scoreText = this.add.text(15, 15, "score: 0", {
-      fontSize: "32px",
-      fill: "#000",
-    });
+    const scoreText = this.add.text(15, 15, "SCORE: 0", {fontSize: "18px", fill: "#fff",});
     let score = 0;
-    //stars collision
+
+    this.totalTime = 30
+    this.timeCount = this.totalTime
+    this.timerText = this.add.text(260, 15, "TIME: "+this.totalTime, {
+      // fontFamily: 'gameFont',
+      fontSize: "18px",
+      fill: "#fff",
+    });
+
+    //this.stars collision
     function collect(player, star) {
       star.disableBody(true, true);
       score += 1;
-      scoreText.setText("Score: " + score);
-
-      if (stars.countActive(true) === 0) {
-        stars.children.iterate(function (child) {
+      scoreText.setText("SCORE: " + score);
+      
+      this.socket.emit('starCollected', {});
+      
+      if (this.stars.countActive(true) === 0) {
+        this.stars.children.iterate(function (child) {
           child.enableBody(true, child.x, 0, true, true);
         });
 
@@ -126,19 +169,63 @@ class JumperScene extends Phaser.Scene {
       }
     }
 
+    // message press start
+    this.textStart = this.add.text(240, 210, "Press enter", {
+      fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif',
+      fontSize: "32px",
+      fill: "#fff",
+    });
+
+    this.isPlaying = false
+    this.enter = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.cursors = this.input.keyboard.createCursorKeys();
+
+    // timer
+    this.timerEvent = this.time.addEvent({
+        delay: 1000,                // ms
+        callback: this.callbackTimer,
+        //args: [],
+        callbackScope: this,
+        repeat: this.totalTime,
+        paused: true
+    });
+   
+
+    this.defineResultsDashboard(this)
+    
+    this.isFinishedGame = false
+
+
     this.defineSocket();
   }
 
   update() {
+    this.otherBombs.getChildren().forEach(function (otherBomb) {
+      otherBomb.body.setGravity(0)
+    });
     if(!this.player.isReady) return
+    
+    if (this.iAmServer && Phaser.Input.Keyboard.JustDown(this.enter)){
+        console.log("enter")
+        if(!this.isPlaying){
+          this.socket.emit('gameStart', {});
+          // play game
+          this.startGame(this)
+        }else if(this.isFinishedGame){
+          console.log("enter reset")
+          this.resetGame(this)
+          this.socket.emit('gameReset', {});
+        }
+    }
+    
+    // if(!this.isPlaying) return
 
-    if(this.player.isAlive){
-      const cursors = this.input.keyboard.createCursorKeys();
-      if (cursors.left.isDown) {
+    if(this.isPlaying && this.player.isAlive){
+      if (this.cursors.left.isDown) {
         this.player.setVelocityX(-200);
         this.player.anims.play("left", true);
         this.player.flipX = true;
-      } else if (cursors.right.isDown) {
+      } else if (this.cursors.right.isDown) {
         this.player.setVelocityX(200);
         this.player.anims.play("right", true);
         this.player.flipX = false;
@@ -147,7 +234,7 @@ class JumperScene extends Phaser.Scene {
         this.player.anims.play("idle", true);
       }
 
-      if (cursors.up.isDown && this.player.body.touching.down) {
+      if (this.cursors.up.isDown && this.player.body.touching.down) {
         this.player.setVelocityY(-500);
       }
     }
@@ -182,7 +269,16 @@ class JumperScene extends Phaser.Scene {
   defineSocket() {
     const self = this
     this.socket = io();
-    this.socket.on("currentData", ({players, bombs}) => {
+    // this.socket = io();
+    this.socket.on('connect', function() {
+
+      console.log("Acabas de conectarte")
+      // socket.emit('datos-conexion', datos);
+    });
+    this.socket.on("gameStarted", ({players, bombs}) => {
+      this.startGame(this)
+    })
+    this.socket.on("currentData", ({players, bombs, isPlaying}) => {
       Object.keys(players).forEach((id) =>{
         if (players[id].playerId === self.socket.id) {
           self.addPlayer(players[id]);
@@ -194,6 +290,9 @@ class JumperScene extends Phaser.Scene {
           self.addOtherBomb(self, bombs[id]);
       });
 
+      if(isPlaying){
+        this.startGame(this)
+      }
     });
     this.socket.on("newPlayer", function (playerInfo) {
       self.addOtherPlayer(self, playerInfo);
@@ -232,7 +331,14 @@ class JumperScene extends Phaser.Scene {
         }
       });
     });
-
+    this.socket.on("gameFinished", function (results) {
+      self.isFinishedGame = true
+      self.showResults(self, results)
+    });
+    this.socket.on("gameReboot", function (results) {
+      console.log("reboot")
+      self.resetGame(self)
+    });
     // this.socket.on('scoreUpdate', function (scores) {
     //   this.blueScoreText.setText('Blue: ' + scores.blue);
     //   this.redScoreText.setText('Red: ' + scores.red);
@@ -249,11 +355,11 @@ class JumperScene extends Phaser.Scene {
 
   addPlayer(playerInfo) {
     const spriteName  = this.defineSpriteName(playerInfo.index)
-    const initialPosition = this.defineInitialPosition(playerInfo.index)
-    this.player.initialPosition = initialPosition
+    this.player.initPos = {x:playerInfo.x, y:playerInfo.y}
     this.player.playerId = playerInfo.playerId;
-    this.player.setPosition(initialPosition.x, initialPosition.y)
-    //this.iAmServer = playerInfo.type === 'server'
+    this.player.setPosition(playerInfo.x, playerInfo.y)
+    this.player.type = playerInfo.type
+    this.iAmServer = playerInfo.type === 'server'
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.platforms);
     //animation
@@ -303,14 +409,123 @@ class JumperScene extends Phaser.Scene {
     
   }
 
+  callbackTimer(){
+    this.timerText.setText("TIME: "+this.timeCount)
+    this.timeCount--
+
+    if(this.timeCount === -1){
+      this.physics.pause()
+      if(this.iAmServer){
+        this.socket.emit('gameFinish', {});
+      }
+    }
+  }
+
   defineSpriteName(index){
     return index < 11 ? 'slime'+index: 'slime'
   }
 
-  defineInitialPosition(index){
-    const totalLugares = Math.floor(400 / 64)
-    const posX = (index) % totalLugares
-    return {x: 24+44*(posX), y: 360}
+  defineSpriteName(index){
+    return index < 11 ? 'slime'+index: 'slime'
+  }
+  
+  defineResultsDashboard(self){
+    self.resultsDashboard = self.add.group()
+    const or = {nX:180, nY: 60, vX: 400, vY: 80}
+    
+    const backDashboard = this.add.image(300, 225, "black");// pos centro
+    backDashboard.alpha = 0.8
+    backDashboard.visible = false
+    self.resultsDashboard.add(backDashboard)
+
+    const labelTitle = this.add.text(or.nX +75, or.nY - 20,'RESULTS', {fontSize: "24px",fill: "#fff", fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'})
+    labelTitle.visible = false
+    self.resultsDashboard.add(labelTitle)
+
+    self.resultsDashboard.labelNames = [] 
+    self.resultsDashboard.labelValues = []
+    const configText = {fontSize: "20px",fill: "#fff"}
+    for(let i = 1; i <= 8; i++){
+      const lblName = this.add.text(or.nX, or.nY + 30*i,`${i}. Player`, configText)
+      const lblValue = this.add.text(or.vX, or.nY + 30*i, "1000", configText)
+      lblName.visible = false
+      lblValue.visible = false
+      self.resultsDashboard.labelNames.push(lblName)
+      self.resultsDashboard.labelValues.push(lblValue)
+      self.resultsDashboard.add(lblName)
+      self.resultsDashboard.add(lblValue)
+    }
+
+    const labelContinue = this.add.text(or.nX + 50, or.nY + 280,'Press enter', {fontSize: "32px",fill: "#fff", fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'})
+
+    labelContinue.visible = false
+    self.resultsDashboard.add(labelContinue)
+  }
+
+  startGame(self){
+    console.log("enter game start")
+    self.isPlaying = true
+    self.textStart.visible = false
+    self.timerEvent.paused = false
+  }
+
+  hideResults(self){
+    self.resultsDashboard.getChildren().forEach(function (lbl) {
+      lbl.visible = false
+    })
+  }
+
+  showResults(self, results){
+    for(let i = 0; i < 8; i++){
+      self.resultsDashboard.labelNames[i].setText(results.length > i ? 'Player '+(results[i].name+1) : '...') 
+      self.resultsDashboard.labelValues[i].setText(results.length > i ? results[i].score : '...') 
+    }
+
+    self.resultsDashboard.getChildren().forEach(function (lbl) {
+      lbl.visible = true
+    })
+  }
+
+  resetGame(self){
+    self.isFinishedGame= false
+    self.isPlaying = false
+    self.textStart.visible = true
+
+    self.timeCount = self.totalTime
+    self.timerEvent = self.time.addEvent({
+      delay: 1000,                // ms
+      callback: self.callbackTimer,
+      //args: [],
+      callbackScope: self,
+      repeat: self.totalTime,
+      paused: true
+    });
+
+    self.hideResults(this)
+
+    if(self.bomb){
+      self.bomb.destroy()
+      self.bomb = null
+    }
+      
+    
+    self.otherBombs.getChildren().forEach( (otherbomb)=> {
+      otherbomb.destroy();
+    });
+
+    // this.stars.clear(true, true)
+    this.stars.children.iterate(function (child) {
+      child.disableBody(true, true);
+    });
+    this.stars.children.iterate(function (child) {
+      child.enableBody(true, child.x, 0, true, true);
+    });
+
+    this.player.enableBody(true, this.player.initPos.x, this.player.initPos.y, true);
+    this.player.anims.play("idle", true);
+    this.player.isAlive = true
+
+    self.physics.resume()
   }
 }
 
