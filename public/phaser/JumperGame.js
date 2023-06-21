@@ -124,7 +124,7 @@ class JumperScene extends Phaser.Scene {
       allowGravity: false,
       gravity:0
     });
-    //this.otherBombs.setGravity(0);
+    
     this.physics.add.overlap(this.player, this.otherBombs, bombTouched, null, this);
     this.physics.add.collider(this.otherBombs, this.platforms);
     
@@ -200,8 +200,8 @@ class JumperScene extends Phaser.Scene {
   }
 
   update() {
-    this.otherBombs.getChildren().forEach(function (otherBomb) {
-      otherBomb.body.setGravity(0)
+    this.otherBombs.children.iterate(function (otherBomb) {
+      otherBomb.body.setGravity(0, -600);
     });
     if(!this.player.isReady) return
     
