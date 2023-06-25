@@ -1,4 +1,5 @@
 require('dotenv').config()
+const axios = require('axios')
 var express = require('express');
 const cors = require("cors");
 var app = express();
@@ -7,6 +8,8 @@ var server = require('http').createServer(app);
 var io = require('socket.io').listen(server);
 
 const PORT = process.env.PORT || 3001
+
+const {HMOON_BACKEND_URL} = process.env
 
 var players = {};
 var bombs = {};
@@ -30,13 +33,15 @@ app.get('/', function (req, res) {
 io.on('connection', function (socket) {
   console.log('a user connected: ', socket.id);
   // create a new player and add it to our players object
-  if(index===-1) {
+  if(index===-1) {// primero en loguearse
     players = {};
     bombs = {};
     scores = {}
     index = -1
     isPlaying = false
+    // console.log(data)
   }
+  
   ++index
   const totalLugares = Math.floor(400 / 64)
   const posX = (index) % totalLugares
@@ -47,19 +52,36 @@ io.on('connection', function (socket) {
     y: pos.y,
     flipX: false,
     index: index,
+    name: 'Player'+(index+1),
     type: Object.keys(players).length?'normal':'server',
     playerId: socket.id,
+    info: null,
   };
   scores[socket.id] = 0
 
   // send the players object to the new player
-  socket.emit('currentData', {players, bombs, isPlaying});
+  
   // send the star object to the new player
   //socket.emit('starLocation', star);
   // send the current scores
   //socket.emit('scoreUpdate', scores);
   // update all other players of the new player
+  socket.emit('currentData', {players, bombs, isPlaying});
   socket.broadcast.emit('newPlayer', players[socket.id]);
+
+  socket.on('userInfo', async function (email) {
+    const {data} = await axios.get(`${HMOON_BACKEND_URL}/user/group?email=${email}`)
+
+    
+    if(data.length){// solo envio a los demás si se actualizó la info
+      players[socket.id].data = data[0]
+      players[socket.id].name = data[0].name
+      players[socket.id].group = data[0].group
+      
+      socket.emit('userInfoDetail', players[socket.id]);
+      socket.broadcast.emit('someoneUpdatedTheirInfo', players[socket.id]);
+    }
+  })
 
   // when a player disconnects, remove them from our players object
   socket.on('disconnect', function () {
@@ -91,10 +113,13 @@ io.on('connection', function (socket) {
       isPlaying = false
 
       let results = Object.keys(scores).map( k => {
-        return {id: k, name: players[k].index, score: scores[k]}
+        const temp = scores[k]
+        scores[k] = 0
+        return {id: k, name: players[k].name, score: temp}
       })
-      
       results.sort((a, b) => b.score - a.score)
+
+      // guardar resultados en BD
       
       socket.broadcast.emit('gameFinished', results);
       socket.emit('gameFinished', results);

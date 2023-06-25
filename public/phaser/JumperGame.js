@@ -1,5 +1,8 @@
 const SlimeGameData = {
-
+  email: EMAIL,
+  group: '--',
+  name: 'Player',
+  isConnected: false,// true cuando socket le devuelva los datos
 }
 
 // class HomeScene extends Phaser.Scene {
@@ -78,6 +81,11 @@ class JumperScene extends Phaser.Scene {
     this.player.setScale(0.6);
     this.player.isAlive = true
     this.player.isReady = false // true cuando se conecta
+    this.player.setDepth(4)
+
+    // label player
+    this.player.lblName = this.add.text(this.player.x-20, this.player.y-32, SlimeGameData.name, {fontSize: "14px", fill: "#fff",});
+    this.player.lblName.setDepth(4)
 
     this.iAmServer = false
     
@@ -87,6 +95,7 @@ class JumperScene extends Phaser.Scene {
       repeat: 8,
       setXY: { x: 12, y: 0, stepX: 70 },
     });
+    this.stars.setDepth(2)
     this.stars.children.iterate(function (child) {
       child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
     });
@@ -124,14 +133,17 @@ class JumperScene extends Phaser.Scene {
       allowGravity: false,
       gravity:0
     });
-    
+
     this.physics.add.overlap(this.player, this.otherBombs, bombTouched, null, this);
     this.physics.add.collider(this.otherBombs, this.platforms);
     
     //score text
-    const scoreText = this.add.text(15, 15, "SCORE: 0", {fontSize: "18px", fill: "#fff",});
-    let score = 0;
+    this.scoreText = this.add.text(15, 15, "SCORE: 0", {fontSize: "18px", fill: "#fff",});
+    this.score = 0;
 
+    this.playerNameText = this.add.text(15, 35, "Name: "+SlimeGameData.name, {fontSize: "18px", fill: "#fff",});
+
+    // timer text
     this.totalTime = 30
     this.timeCount = this.totalTime
     this.timerText = this.add.text(260, 15, "TIME: "+this.totalTime, {
@@ -140,11 +152,14 @@ class JumperScene extends Phaser.Scene {
       fill: "#fff",
     });
 
+    // group text
+    this.groupText = this.add.text(480, 15, "GROUP: "+SlimeGameData.group, {fontSize: "18px", fill: "#fff",});
+
     //this.stars collision
     function collect(player, star) {
       star.disableBody(true, true);
-      score += 1;
-      scoreText.setText("SCORE: " + score);
+      this.score += 1;
+      this.scoreText.setText("SCORE: " + this.score);
       
       this.socket.emit('starCollected', {});
       
@@ -165,6 +180,7 @@ class JumperScene extends Phaser.Scene {
         this.bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
         this.bomb.playerId = this.player.playerId
        
+        this.bomb.setDepth(3)
         this.socket.emit('createdBomb', { x: this.bomb.x, y: this.bomb.y, playerId: this.player.playerId});
       }
     }
@@ -200,9 +216,11 @@ class JumperScene extends Phaser.Scene {
   }
 
   update() {
+    this.player.lblName.setPosition(this.player.x-20, this.player.y-32)
     this.otherBombs.children.iterate(function (otherBomb) {
       otherBomb.body.setGravity(0, -600);
     });
+   
     if(!this.player.isReady) return
     
     if (this.iAmServer && Phaser.Input.Keyboard.JustDown(this.enter)){
@@ -273,7 +291,23 @@ class JumperScene extends Phaser.Scene {
     this.socket.on('connect', function() {
 
       console.log("Acabas de conectarte")
-      // socket.emit('datos-conexion', datos);
+      self.socket.emit('userInfo', SlimeGameData.email);
+    });
+    this.socket.on('userInfoDetail', function(userInfoDetail) {
+      console.log("Me llego el detalle de mis datos", userInfoDetail)
+      if(userInfoDetail){// si existe
+        SlimeGameData.name = userInfoDetail.name
+        SlimeGameData.group = userInfoDetail.group
+
+        self.player.lblName.setText(userInfoDetail.name)
+        self.groupText.setText('GROUP: '+userInfoDetail.group)
+        self.playerNameText.setText('Name: '+userInfoDetail.name)
+      }else{
+        if(self.player.index!== undefined)
+          self.player.lblName.setText("Player"+(self.player.index+1))
+      }
+
+      SlimeGameData.isConnected = true
     });
     this.socket.on("gameStarted", ({players, bombs}) => {
       this.startGame(this)
@@ -297,11 +331,20 @@ class JumperScene extends Phaser.Scene {
     this.socket.on("newPlayer", function (playerInfo) {
       self.addOtherPlayer(self, playerInfo);
     });
+    this.socket.on("someoneUpdatedTheirInfo", function (playerInfo) {
+      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+        if (playerInfo.playerId === otherPlayer.playerId) {
+          otherPlayer.name = playerInfo.name
+          otherPlayer.lblName.setText(playerInfo.name)
+        }
+      });
+    });
     this.socket.on("playerMoved", function (playerInfo) {
       self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerInfo.playerId === otherPlayer.playerId) {
           otherPlayer.setPosition(playerInfo.x, playerInfo.y);
           otherPlayer.flipX = playerInfo.flipX
+          otherPlayer.lblName.setPosition(otherPlayer.x -20, otherPlayer.y-32)
         }
       });
     });
@@ -322,6 +365,7 @@ class JumperScene extends Phaser.Scene {
       self.otherPlayers.getChildren().forEach( (otherPlayer)=> {
         if (playerId === otherPlayer.playerId) {
           otherPlayer.destroy();
+          otherPlayer.lblName.destroy()
         }
       });
 
@@ -333,6 +377,7 @@ class JumperScene extends Phaser.Scene {
     });
     this.socket.on("gameFinished", function (results) {
       self.isFinishedGame = true
+      self.physics.pause()
       self.showResults(self, results)
     });
     this.socket.on("gameReboot", function (results) {
@@ -357,9 +402,12 @@ class JumperScene extends Phaser.Scene {
     const spriteName  = this.defineSpriteName(playerInfo.index)
     this.player.initPos = {x:playerInfo.x, y:playerInfo.y}
     this.player.playerId = playerInfo.playerId;
+    this.player.index = playerInfo.index;
     this.player.setPosition(playerInfo.x, playerInfo.y)
     this.player.type = playerInfo.type
     this.iAmServer = playerInfo.type === 'server'
+    this.player.name = playerInfo.name
+    this.player.lblName.setText(playerInfo.name)
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.platforms);
     //animation
@@ -389,22 +437,35 @@ class JumperScene extends Phaser.Scene {
 
     this.player.anims.play("idle", true);
     this.player.isReady = true
+
+    this.playerNameText.setText("Name: "+this.player.name)
+
   }
   
   addOtherPlayer(self, playerInfo) {
     const spriteName = this.defineSpriteName(playerInfo.index)
     const otherPlayer = self.add.sprite(playerInfo.x, playerInfo.y, spriteName)
+
     otherPlayer.setScale(0.6)
     otherPlayer.playerId = playerInfo.playerId;
     otherPlayer.flipX = playerInfo.flipX;
     otherPlayer.alpha = .5
+
+    otherPlayer.name = playerInfo.name
+    otherPlayer.lblName = this.add.text(otherPlayer.x-20, otherPlayer.y-32, otherPlayer.name, {fontSize: "14px", fill: "#fff",});
+    otherPlayer.lblName.alpha = .5
+
+    otherPlayer.setDepth(1)
+    otherPlayer.lblName.setDepth(1)
+
     self.otherPlayers.add(otherPlayer);
   }
 
   addOtherBomb(self, bombInfo) {
     const otherBomb = self.add.sprite(bombInfo.x, bombInfo.y, 'bomb')
     otherBomb.playerId = bombInfo.playerId;
-    otherBomb.alpha = .6
+    // otherBomb.alpha = .6
+    otherBomb.setDepth(3)
     self.otherBombs.add(otherBomb);
     
   }
@@ -414,7 +475,6 @@ class JumperScene extends Phaser.Scene {
     this.timeCount--
 
     if(this.timeCount === -1){
-      this.physics.pause()
       if(this.iAmServer){
         this.socket.emit('gameFinish', {});
       }
@@ -437,6 +497,7 @@ class JumperScene extends Phaser.Scene {
     backDashboard.alpha = 0.8
     backDashboard.visible = false
     self.resultsDashboard.add(backDashboard)
+    
 
     const labelTitle = this.add.text(or.nX +75, or.nY - 20,'RESULTS', {fontSize: "24px",fill: "#fff", fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'})
     labelTitle.visible = false
@@ -454,12 +515,15 @@ class JumperScene extends Phaser.Scene {
       self.resultsDashboard.labelValues.push(lblValue)
       self.resultsDashboard.add(lblName)
       self.resultsDashboard.add(lblValue)
+
+      
     }
 
     const labelContinue = this.add.text(or.nX + 50, or.nY + 280,'Press enter', {fontSize: "32px",fill: "#fff", fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'})
 
     labelContinue.visible = false
     self.resultsDashboard.add(labelContinue)
+    self.resultsDashboard.setDepth(5)
   }
 
   startGame(self){
@@ -477,7 +541,7 @@ class JumperScene extends Phaser.Scene {
 
   showResults(self, results){
     for(let i = 0; i < 8; i++){
-      self.resultsDashboard.labelNames[i].setText(results.length > i ? 'Player '+(results[i].name+1) : '...') 
+      self.resultsDashboard.labelNames[i].setText(results.length > i ? results[i].name : '...') 
       self.resultsDashboard.labelValues[i].setText(results.length > i ? results[i].score : '...') 
     }
 
@@ -490,6 +554,9 @@ class JumperScene extends Phaser.Scene {
     self.isFinishedGame= false
     self.isPlaying = false
     self.textStart.visible = true
+
+    this.score = 0
+    this.scoreText.setText("SCORE: " + this.score);
 
     self.timeCount = self.totalTime
     self.timerEvent = self.time.addEvent({

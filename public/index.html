@@ -4,7 +4,11 @@
     <head>
         <meta charset="utf-8">
     </head>
-
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        //Accedemos a los valores
+        const EMAIL = urlParams.get('email');
+    </script>
     <body>
         <script src="socket.io/socket.io.js"></script>
         <script src="//cdn.jsdelivr.net/npm/phaser@3.3.0/dist/phaser.min.js"></script>
