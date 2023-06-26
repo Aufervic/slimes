@@ -70,7 +70,13 @@ io.on('connection', function (socket) {
   socket.broadcast.emit('newPlayer', players[socket.id]);
 
   socket.on('userInfo', async function (email) {
-    const {data} = await axios.get(`${HMOON_BACKEND_URL}/user/group?email=${email}`)
+    let data = []
+    try{
+      const result = await axios.get(`${HMOON_BACKEND_URL}/user/group?email=${email}`)
+      data = result.data
+    }catch(error){
+      data = []
+    }
 
     
     if(data.length){// solo envio a los demás si se actualizó la info

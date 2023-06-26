@@ -61,6 +61,13 @@ class JumperScene extends Phaser.Scene {
     this.load.spritesheet("slime10", "./assets/slime-10-Sheet.png", { frameWidth: 64, frameHeight: 64});
     this.load.spritesheet("slime11", "./assets/slime-11-Sheet.png", { frameWidth: 64, frameHeight: 64});
     // this.load.font("gameFont", "./assets/PixelGameFont.ttf");
+
+    this.load.audio('jump', './assets/jump.mp3');
+    this.load.audio('coin', './assets/coin.mp3');
+    this.load.audio('hit', './assets/hit.wav');
+    this.load.audio('pop', './assets/pop.mp3');
+    this.load.audio('bounce', './assets/bounce.mp3');
+    this.load.audio('step', './assets/step.mp3');
   }
 
   create() {
@@ -81,11 +88,14 @@ class JumperScene extends Phaser.Scene {
     this.player.setScale(0.6);
     this.player.isAlive = true
     this.player.isReady = false // true cuando se conecta
-    this.player.setDepth(4)
+    this.player.setDepth(3)
 
     // label player
     this.player.lblName = this.add.text(this.player.x-20, this.player.y-32, SlimeGameData.name, {fontSize: "14px", fill: "#fff",});
-    this.player.lblName.setDepth(4)
+    this.player.lblName.setDepth(3)
+
+
+    this.player.touchedGround = false // para el sonido de pasos
 
     this.iAmServer = false
     
@@ -104,28 +114,33 @@ class JumperScene extends Phaser.Scene {
     //bombs
 
     this.bombs = this.physics.add.group();
-    this.physics.add.collider(this.bombs, this.platforms);
+    this.physics.add.collider(this.bombs, this.platforms, bounceBomb, null, this);
 
     this.physics.add.overlap(this.player, this.bombs, bombTouched, null, this);
 
     function onReappearEvent() {
-      
+      this.popSound.play()
+
       this.player.enableBody(true,0, 0, true);
       //.enableBody(true, child.x, 0, true, true);
       this.player.anims.play("idle", true);
       this.player.isAlive = true
     }
 
+    
+
     function bombTouched(player, bomb) {
+      this.hitSound.play()
+
       this.player.isAlive = false
       // this.physics.pause();
       // this.player.setTint(0xff000);
       this.player.anims.play("hited");
       this.player.disableBody(true, false);
 
+      
       this.timedEvent = this.time.delayedCall(3000, onReappearEvent, [], this);
     }
-
 
 
     this.otherBombs = this.physics.add.group({
@@ -135,8 +150,13 @@ class JumperScene extends Phaser.Scene {
     });
 
     this.physics.add.overlap(this.player, this.otherBombs, bombTouched, null, this);
-    this.physics.add.collider(this.otherBombs, this.platforms);
+    this.physics.add.collider(this.otherBombs, this.platforms, bounceBomb, null, this);
     
+
+    function bounceBomb(player, bomb) {
+      this.bounceSound.play()
+    }
+
     //score text
     this.scoreText = this.add.text(15, 15, "SCORE: 0", {fontSize: "18px", fill: "#fff",});
     this.score = 0;
@@ -157,11 +177,14 @@ class JumperScene extends Phaser.Scene {
 
     //this.stars collision
     function collect(player, star) {
+      this.coinSound.play()
+
       star.disableBody(true, true);
       this.score += 1;
       this.scoreText.setText("SCORE: " + this.score);
       
       this.socket.emit('starCollected', {});
+      
       
       if (this.stars.countActive(true) === 0) {
         this.stars.children.iterate(function (child) {
@@ -180,7 +203,7 @@ class JumperScene extends Phaser.Scene {
         this.bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
         this.bomb.playerId = this.player.playerId
        
-        this.bomb.setDepth(3)
+        this.bomb.setDepth(4)
         this.socket.emit('createdBomb', { x: this.bomb.x, y: this.bomb.y, playerId: this.player.playerId});
       }
     }
@@ -213,6 +236,14 @@ class JumperScene extends Phaser.Scene {
 
 
     this.defineSocket();
+
+    // sounds
+    this.jumpSound = this.sound.add('jump');
+    this.coinSound = this.sound.add('coin')
+    this.hitSound = this.sound.add('hit')
+    this.popSound = this.sound.add('pop')
+    this.bounceSound = this.sound.add('bounce')
+    this.stepSound = this.sound.add('step')
   }
 
   update() {
@@ -252,10 +283,21 @@ class JumperScene extends Phaser.Scene {
         this.player.anims.play("idle", true);
       }
 
+      if (this.cursors.down.isDown) {
+        this.player.setVelocityY(450);
+      }
+
       if (this.cursors.up.isDown && this.player.body.touching.down) {
+        this.jumpSound.play()
         this.player.setVelocityY(-500);
       }
     }
+
+    // console.log(this.player.body.velocity.y)
+    if(this.player.body.velocity.y !== 0 && !this.player.body.touching.down){
+      this.player.touchedGround =false 
+    }
+    
 
     // emit player movement
     var x = this.player.x;
@@ -409,7 +451,15 @@ class JumperScene extends Phaser.Scene {
     this.player.name = playerInfo.name
     this.player.lblName.setText(playerInfo.name)
     this.player.setCollideWorldBounds(true);
-    this.physics.add.collider(this.player, this.platforms);
+    this.physics.add.collider(this.player, this.platforms, touchGround, null, this);
+
+    function touchGround(player, platform){
+      if(!this.player.touchedGround && (this.player.body.touching.down || this.player.body.touching.up)){
+        this.stepSound.play()
+        this.player.touchedGround = true
+      }
+    }
+
     //animation
     this.anims.create({
       key: "idle",
@@ -465,9 +515,9 @@ class JumperScene extends Phaser.Scene {
     const otherBomb = self.add.sprite(bombInfo.x, bombInfo.y, 'bomb')
     otherBomb.playerId = bombInfo.playerId;
     // otherBomb.alpha = .6
-    otherBomb.setDepth(3)
+    otherBomb.setDepth(4)
     self.otherBombs.add(otherBomb);
-    
+    otherBomb.body.setSize(14, 20)// para que detecte la colision
   }
 
   callbackTimer(){
