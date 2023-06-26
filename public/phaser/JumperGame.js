@@ -341,7 +341,7 @@ class JumperScene extends Phaser.Scene {
         SlimeGameData.name = userInfoDetail.name
         SlimeGameData.group = userInfoDetail.group
 
-        self.player.lblName.setText(userInfoDetail.name)
+        self.player.lblName.setText(userInfoDetail.name.split(' ', 1)[0].substring(0,8))
         self.groupText.setText('GROUP: '+userInfoDetail.group)
         self.playerNameText.setText('Name: '+userInfoDetail.name)
       }else{
@@ -377,7 +377,7 @@ class JumperScene extends Phaser.Scene {
       self.otherPlayers.getChildren().forEach(function (otherPlayer) {
         if (playerInfo.playerId === otherPlayer.playerId) {
           otherPlayer.name = playerInfo.name
-          otherPlayer.lblName.setText(playerInfo.name)
+          otherPlayer.lblName.setText(playerInfo.name.split(' ', 1)[0].substring(0,8))
         }
       });
     });
