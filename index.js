@@ -143,7 +143,7 @@ io.on('connection', function (socket) {
     // emit a message to all players about the player that moved
     console.log("Game Reset")
     bombs = {};
-    scores = {}
+    // scores = {}
     socket.broadcast.emit('gameReboot', {});
   });
 
