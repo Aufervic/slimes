@@ -122,16 +122,20 @@ io.on('connection', function (socket) {
       let results = Object.keys(scores).map( k => {
         const tempScore = scores[k]
         scores[k] = 0
-        resultsForAPI.push({userID: players[k].data._id, gameID: "649c47dd071df698e23c571a", cohort: players[k].data.cohort, group: players[k].data.group, points: tempScore})
+        if(players[k].data){
+          resultsForAPI.push({userID: players[k].data._id, gameID: "649c47dd071df698e23c571a", cohort: players[k].data.cohort, group: players[k].data.group, points: tempScore})
+        }
         return {id: k, name: players[k].name, score: tempScore}
       })
       results.sort((a, b) => b.score - a.score)
 
-      // guardar resultados en BD
-      try{
-        await axios.post(`${HMOON_BACKEND_URL}/ranking/many`, resultsForAPI)
-      }catch(error){
-        console.log("Algo salió mal guardando los datos", error.message)
+      // guardar resultados en BD si los hay
+      if(resultsForAPI.length){
+        try{
+          await axios.post(`${HMOON_BACKEND_URL}/ranking/many`, resultsForAPI)
+        }catch(error){
+          console.log("Algo salió mal guardando los datos", error.message)
+        }
       }
 
       // emitir a los compas
