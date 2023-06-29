@@ -70,19 +70,19 @@ io.on('connection', function (socket) {
   socket.broadcast.emit('newPlayer', players[socket.id]);
 
   socket.on('userInfo', async function (email) {
-    let data = []
+    let APIData = []
     try{
       const result = await axios.get(`${HMOON_BACKEND_URL}/user/group?email=${email}`)
-      data = result.data
+      APIData = result.data
     }catch(error){
-      data = []
+      APIData = []
     }
 
     
-    if(data.length){// solo envio a los demás si se actualizó la info
-      players[socket.id].data = data[0]
-      players[socket.id].name = data[0].name
-      players[socket.id].group = data[0].group
+    if(APIData.length){// solo envio a los demás si se actualizó la info
+      players[socket.id].data = APIData[0]
+      players[socket.id].name = APIData[0].name
+      players[socket.id].group = APIData[0].group
       
       socket.emit('userInfoDetail', players[socket.id]);
       socket.broadcast.emit('someoneUpdatedTheirInfo', players[socket.id]);
@@ -112,21 +112,29 @@ io.on('connection', function (socket) {
     }
     
   });
-  socket.on('gameFinish', function (data) {
+  socket.on('gameFinish', async function (data) {
     // emit a message to all players about the player that moved
     if(isPlaying){
       console.log('Game Finish');
       isPlaying = false
 
+      const resultsForAPI =[]
       let results = Object.keys(scores).map( k => {
-        const temp = scores[k]
+        const tempScore = scores[k]
         scores[k] = 0
-        return {id: k, name: players[k].name, score: temp}
+        resultsForAPI.push({userID: players[k].data._id, gameID: "649c47dd071df698e23c571a", cohort: players[k].data.cohort, group: players[k].data.group, points: tempScore})
+        return {id: k, name: players[k].name, score: tempScore}
       })
       results.sort((a, b) => b.score - a.score)
 
       // guardar resultados en BD
-      
+      try{
+        await axios.post(`${HMOON_BACKEND_URL}/ranking/many`, resultsForAPI)
+      }catch(error){
+        console.log("Algo salió mal guardando los datos", error.message)
+      }
+
+      // emitir a los compas
       socket.broadcast.emit('gameFinished', results);
       socket.emit('gameFinished', results);
     }
@@ -134,6 +142,8 @@ io.on('connection', function (socket) {
   socket.on('gameReset', function (data) {
     // emit a message to all players about the player that moved
     console.log("Game Reset")
+    bombs = {};
+    scores = {}
     socket.broadcast.emit('gameReboot', {});
   });
 

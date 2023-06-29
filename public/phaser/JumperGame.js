@@ -164,7 +164,7 @@ class JumperScene extends Phaser.Scene {
     this.playerNameText = this.add.text(15, 35, "Name: "+SlimeGameData.name, {fontSize: "18px", fill: "#fff",});
 
     // timer text
-    this.totalTime = 30
+    this.totalTime = 5
     this.timeCount = this.totalTime
     this.timerText = this.add.text(260, 15, "TIME: "+this.totalTime, {
       // fontFamily: 'gameFont',
