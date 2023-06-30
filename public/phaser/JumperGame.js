@@ -180,7 +180,7 @@ class JumperScene extends Phaser.Scene {
       this.coinSound.play()
 
       star.disableBody(true, true);
-      this.score += 1;
+      this.score += 10;
       this.scoreText.setText("SCORE: " + this.score);
       
       this.socket.emit('starCollected', {});

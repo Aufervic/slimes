@@ -172,7 +172,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on('starCollected', function () {
-    scores[socket.id] +=1
+    scores[socket.id] += 10
     // io.emit('starLocation', star);
     // io.emit('scoreUpdate', scores);
   });
