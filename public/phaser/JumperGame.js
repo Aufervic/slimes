@@ -649,8 +649,12 @@ class JumperScene extends Phaser.Scene {
 const config = {
   type: Phaser.AUTO,
   parent: "phaser-example",
-  width: 600,
-  height: 450,
+  width: 600,//600
+  height: 450,//450
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
   physics: {
     default: "arcade",
     arcade: {
