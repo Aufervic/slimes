@@ -74,8 +74,10 @@ io.on('connection', function (socket) {
     try{
       console.log("(B)Tu email es:", email)
       const result = await axios.get(`${HMOON_BACKEND_URL}/user/group?email=${email}`)
+      console.log("reultado de la peticion", result)
       APIData = result.data
     }catch(error){
+      console.log("F, un error ocurrió:", error.message)
       APIData = []
     }
 
