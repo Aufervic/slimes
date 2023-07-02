@@ -255,13 +255,11 @@ class JumperScene extends Phaser.Scene {
     if(!this.player.isReady) return
     
     if (this.iAmServer && Phaser.Input.Keyboard.JustDown(this.enter)){
-        console.log("enter")
         if(!this.isPlaying){
           this.socket.emit('gameStart', {});
           // play game
           this.startGame(this)
         }else if(this.isFinishedGame){
-          console.log("enter reset")
           this.resetGame(this)
           this.socket.emit('gameReset', {});
         }
@@ -293,7 +291,6 @@ class JumperScene extends Phaser.Scene {
       }
     }
 
-    // console.log(this.player.body.velocity.y)
     if(this.player.body.velocity.y !== 0 && !this.player.body.touching.down){
       this.player.touchedGround =false 
     }
@@ -332,11 +329,9 @@ class JumperScene extends Phaser.Scene {
     // this.socket = io();
     this.socket.on('connect', function() {
 
-      console.log("Acabas de conectarte")
       self.socket.emit('userInfo', SlimeGameData.email);
     });
     this.socket.on('userInfoDetail', function(userInfoDetail) {
-      console.log("Me llego el detalle de mis datos", userInfoDetail)
       if(userInfoDetail){// si existe
         SlimeGameData.name = userInfoDetail.name
         SlimeGameData.group = userInfoDetail.group
@@ -423,7 +418,6 @@ class JumperScene extends Phaser.Scene {
       self.showResults(self, results)
     });
     this.socket.on("gameReboot", function (results) {
-      console.log("reboot")
       self.resetGame(self)
     });
     // this.socket.on('scoreUpdate', function (scores) {
@@ -577,7 +571,6 @@ class JumperScene extends Phaser.Scene {
   }
 
   startGame(self){
-    console.log("enter game start")
     self.isPlaying = true
     self.textStart.visible = false
     self.timerEvent.paused = false
